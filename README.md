@@ -21,7 +21,7 @@ lazyports
 **One-liner** (installs to `~/.local/bin` via `go install`):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/niiithish/lazyports/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/niiithish/lazyports/HEAD/install.sh | bash
 ```
 
 Requires Go. Fallback: clones the repo and builds if `go install` fails.
