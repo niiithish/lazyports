@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Resolve a working Go toolchain for lazyports builds.
+set -euo pipefail
+
+if command -v go >/dev/null 2>&1; then
+  exec go "$@"
+fi
+
+LOCAL_GO="${HOME}/.local/go/bin/go"
+if [[ -x "${LOCAL_GO}" ]]; then
+  exec "${LOCAL_GO}" "$@"
+fi
+
+cat >&2 <<'EOF'
+Go was not found.
+
+Install one of:
+  • pacman -S go                         (Arch)
+  • https://go.dev/dl/                   (official tarball → ~/.local/go)
+  • ./scripts/setup-go.sh                (auto-download to ~/.local/go)
+
+Then rerun:
+  ./build.sh
+EOF
+exit 1

@@ -1,0 +1,4 @@
+/lazyports
+*.exe
+*.test
+/vendor/
