@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -8,6 +9,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/niiithish/lazyports/internal/ports"
+	"github.com/niiithish/lazyports/internal/update"
 )
 
 type mode int
@@ -39,23 +41,27 @@ type restartResultMsg struct {
 	err    error
 }
 
+type updateCheckedMsg update.Info
+
 // Model is the root bubbletea model.
 type Model struct {
-	allPorts     []ports.Port
-	filtered     []ports.Port
-	cursor       int
-	filterInput  textinput.Model
-	mode         mode
-	statusMsg    string
-	statusExpiry time.Time
-	width        int
-	height       int
-	refreshEvery time.Duration
-	lastRefresh  time.Time
-	confirmPort  ports.Port
-	helpOpen     bool
-	listOffset   int
-	showSystem   bool
+	allPorts         []ports.Port
+	filtered         []ports.Port
+	cursor           int
+	filterInput      textinput.Model
+	mode             mode
+	statusMsg        string
+	statusExpiry     time.Time
+	width            int
+	height           int
+	refreshEvery     time.Duration
+	lastRefresh      time.Time
+	confirmPort      ports.Port
+	helpOpen         bool
+	listOffset       int
+	showSystem       bool
+	updateInfo       update.Info
+	updateDismissed  bool
 }
 
 func New(refreshEvery time.Duration) Model {
@@ -75,7 +81,7 @@ func New(refreshEvery time.Duration) Model {
 }
 
 func (m Model) Init() tea.Cmd {
-	return tea.Batch(loadPorts(m.showSystem), tickCmd(m.refreshEvery))
+	return tea.Batch(loadPorts(m.showSystem), tickCmd(m.refreshEvery), checkUpdateCmd())
 }
 
 func tickCmd(d time.Duration) tea.Cmd {
@@ -116,6 +122,14 @@ func restartCmd(p ports.Port) tea.Cmd {
 	return func() tea.Msg {
 		newPID, err := ports.RestartPortProcess(p)
 		return restartResultMsg{port: p, newPID: newPID, err: err}
+	}
+}
+
+func checkUpdateCmd() tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+		defer cancel()
+		return updateCheckedMsg(update.Check(ctx))
 	}
 }
 
@@ -225,6 +239,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.mode = modeNormal
 		return m, loadPorts(m.showSystem)
+
+	case updateCheckedMsg:
+		m.updateInfo = update.Info(msg)
+		return m, nil
 	}
 
 	return m, nil
@@ -237,6 +255,19 @@ func (m Model) updateNormal(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case "?":
 		m.helpOpen = !m.helpOpen
+		return m, nil
+
+	case "U":
+		if m.updateInfo.Available {
+			m.setStatus("update: "+m.updateInfo.Command, 30*time.Second)
+		}
+		return m, nil
+
+	case "esc":
+		if m.updateInfo.Available && !m.updateDismissed {
+			m.updateDismissed = true
+			return m, nil
+		}
 		return m, nil
 
 	case "/":
@@ -398,5 +429,6 @@ const helpText = `lazyports — keyboard shortcuts
   K               force kill (SIGKILL)
   s               restart process
   r               refresh
+  U               show update install command
   ?               help
   q               quit`

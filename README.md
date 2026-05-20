@@ -46,9 +46,20 @@ Make sure `~/.local/bin` is on your `PATH`.
 
 ```bash
 lazyports
+lazyports -version
 lazyports -refresh 5s
 lazyports -refresh 0   # disable auto-refresh
 ```
+
+On launch, lazyports checks GitHub for a newer release and prompts you to update. Press `U` to show the install command, or `esc` to dismiss the prompt for the session.
+
+To update:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/niiithish/lazyports/HEAD/install.sh | bash
+```
+
+Set `LAZYPORTS_SKIP_UPDATE=1` to disable the update check.
 
 ## Keybindings
 

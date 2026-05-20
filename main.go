@@ -8,11 +8,18 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/niiithish/lazyports/internal/tui"
+	"github.com/niiithish/lazyports/internal/version"
 )
 
 func main() {
+	showVersion := flag.Bool("version", false, "print version and exit")
 	refresh := flag.Duration("refresh", 2*time.Second, "auto-refresh interval (0 to disable)")
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Println(version.Current())
+		return
+	}
 
 	if *refresh < 0 {
 		fmt.Fprintln(os.Stderr, "refresh interval must be >= 0")

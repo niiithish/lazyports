@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/niiithish/lazyports/internal/ports"
+	"github.com/niiithish/lazyports/internal/version"
 )
 
 func (m Model) View() string {
@@ -27,8 +28,24 @@ func (m Model) View() string {
 		m.renderDetailPanel(lay),
 	)
 	status := m.renderStatusBar(lay)
+	if m.showUpdatePrompt() {
+		status = m.renderUpdateBanner(lay) + "\n" + status
+	}
 
 	return strings.TrimRight(body, "\n") + "\n" + status
+}
+
+func (m Model) showUpdatePrompt() bool {
+	return m.updateInfo.Available && !m.updateDismissed && m.mode == modeNormal && !m.helpOpen
+}
+
+func (m Model) renderUpdateBanner(lay layout) string {
+	msg := fmt.Sprintf(
+		" update v%s available (you have v%s) · U: show install command · esc: dismiss ",
+		m.updateInfo.Latest,
+		m.updateInfo.Current,
+	)
+	return statusBarStyle.Width(lay.width).Render(warnStyle.Render(msg))
 }
 
 func colPad(s string, width int) string {
@@ -233,7 +250,7 @@ func (m Model) renderStatusBar(lay layout) string {
 		left = optionsStyle.Render(m.optionsText())
 	}
 
-	info := infoStyle.Render(" lazyports ")
+	info := infoStyle.Render(fmt.Sprintf(" lazyports v%s ", version.Current()))
 	if m.mode == modeFilter {
 		m.filterInput.Width = min(lay.width-lipgloss.Width(" filter: ")-lipgloss.Width(info)-2, 40)
 		filterLine := filterPromptStyle.Render("filter: ") + m.filterInput.View()

@@ -4,7 +4,7 @@ import "github.com/charmbracelet/lipgloss"
 
 const (
 	sidePanelRatio = 0.3333 // lazydocker default sidePanelWidth
-	statusRows     = 2
+	statusRows     = 3      // options + optional update banner
 )
 
 type layout struct {
