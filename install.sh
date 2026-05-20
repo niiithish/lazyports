@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -eo pipefail
 
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/bin}"
 REPO="github.com/niiithish/lazyports"
@@ -13,7 +13,7 @@ ensure_go() {
 		export PATH="$HOME/.local/go/bin:$PATH"
 		return 0
 	fi
-	echo "Go is required to build lazyports." >&2
+	echo "Go is required to install lazyports." >&2
 	echo "Install Go from https://go.dev/dl/ then re-run this script." >&2
 	exit 1
 }
@@ -60,11 +60,12 @@ install_remote() {
 	install_from_source_dir "$tmp/lazyports"
 }
 
-script_path="${BASH_SOURCE[0]:-}"
-if [[ -n "$script_path" && "$script_path" != "bash" && -f "$script_path" ]]; then
-	root="$(cd "$(dirname "$script_path")" && pwd)"
-	if [[ -f "$root/go.mod" ]]; then
-		install_from_source_dir "$root"
+# curl ... | bash  => $0 is "bash" and there is no script file on disk.
+# ./install.sh     => $0 is the script path and go.mod sits next to it.
+if [[ "${0:-}" != "bash" && -n "${0:-}" && -f "${0}" ]]; then
+	script_dir="$(cd "$(dirname "$0")" && pwd)"
+	if [[ -f "$script_dir/go.mod" ]]; then
+		install_from_source_dir "$script_dir"
 		exit 0
 	fi
 fi
