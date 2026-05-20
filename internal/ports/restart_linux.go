@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -30,6 +31,7 @@ func RestartPortProcess(p Port) (int, error) {
 
 	env := processEnv(p.PID)
 	oldPID := p.PID
+	argv = resolveExecutableArgv(oldPID, argv)
 
 	if err := stopProcess(oldPID, 3*time.Second); err != nil {
 		return 0, err
@@ -63,6 +65,64 @@ func processArgv(pid int) ([]string, error) {
 		return nil, fmt.Errorf("empty cmdline")
 	}
 	return argv, nil
+}
+
+func processExe(pid int) (string, error) {
+	exe, err := os.Readlink(procFile(pid, "exe"))
+	if err != nil {
+		return "", err
+	}
+	exe = strings.TrimSpace(exe)
+	if exe == "" {
+		return "", fmt.Errorf("empty exe")
+	}
+	if idx := strings.Index(exe, " (deleted)"); idx >= 0 {
+		exe = exe[:idx]
+	}
+	return exe, nil
+}
+
+// resolveExecutableArgv fixes argv[0] when a runtime rewrites it for display.
+// Ruby/Puma, Node, and others often set argv[0] to something like
+// "puma 7.2.0 (tcp://localhost:3000) [app]" which is not a real binary path.
+func resolveExecutableArgv(pid int, argv []string) []string {
+	if len(argv) == 0 {
+		return argv
+	}
+
+	if looksLikeExecutable(argv[0]) {
+		return argv
+	}
+
+	exe, err := processExe(pid)
+	if err != nil {
+		return argv
+	}
+
+	out := make([]string, len(argv))
+	copy(out, argv)
+	out[0] = exe
+	return out
+}
+
+func looksLikeExecutable(path string) bool {
+	if path == "" || strings.Contains(path, " ") {
+		return false
+	}
+
+	if strings.Contains(path, "/") {
+		info, err := os.Stat(path)
+		if err != nil {
+			return false
+		}
+		if info.IsDir() {
+			return false
+		}
+		return info.Mode()&0111 != 0
+	}
+
+	found, err := exec.LookPath(path)
+	return err == nil && found != ""
 }
 
 func processCWD(pid int) (string, error) {
@@ -152,5 +212,15 @@ func RestartCommand(pid int) string {
 	if err != nil {
 		return processCommand(pid)
 	}
+	argv = resolveExecutableArgv(pid, argv)
 	return strings.Join(argv, " ")
+}
+
+// ExecutablePath returns the resolved binary path for a PID.
+func ExecutablePath(pid int) (string, error) {
+	exe, err := processExe(pid)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Clean(exe), nil
 }
